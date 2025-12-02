@@ -1,0 +1,213 @@
+%styl klasy z Polskimi Normami oprac. Marcin Wolinski
+\documentclass[a4paper,titleauthor]{mwart} 
+\usepackage{polski}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx} %pakiet do wstawiania grafiki
+\usepackage[hyphens]{url} %pakiet do wstawiania linkow
+%\usepackage[hidelinks,breaklinks]{hyperref}
+\usepackage{authblk}%pakiet do tworzenia afiliacji
+\usepackage{tabularx}%pakiet do tabel
+\usepackage[a4paper, left=2cm, right=2cm, top=3cm, bottom=3cm]{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{placeins}%pakiet do kontroli umieszczania obiektow
+\usepackage{hyperref}%pakiet do m.in. kolorowania linkow
+\usepackage{enumitem}
+\usepackage[tablegrid,owncaptions]{vhistory}
+\usepackage[utf8]{inputenc}
+\usepackage{minted}
+
+\begin{document}
+
+% \begin{titlepage}
+   \begin{center}
+       % \vspace*{1cm}
+
+       % \textbf{\Huge APEM  } \\
+       %  \vspace{1.0cm}
+       \huge{NLP - Projekt} \\
+
+       \vspace{1.0cm}
+        \LARGE{\textbf{Porównanie metod Parameter-Efficient Fine-tuning (PEFT) na wybranych zadaniach NLP }}
+
+            
+        % \vspace{0.5cm}
+        % \textsc{Grupa projektowa \\ {\Large{w składzie}} :}
+
+        
+        \vspace{1cm}
+        {Maja Zglinicka} \\
+        {\small{318860 }} \\
+
+        \vspace{0.5cm}
+        {Tomasz Lewiński} \\
+        {\small{323692 }} \\
+        
+   \end{center}
+% \end{titlepage} 
+
+\tableofcontents
+\section{Dokumentacja wstępna}
+\subsection{Problematyka}
+\subsubsection{Fine-tuning}
+
+W ostatnich latach modele językowe oparte na architekturach transformerowych, takie jak BERT, RoBERTa, czy GPT, stały się podstawowym narzędziem w przetwarzaniu języka naturalnego. Są one trenowane na ogromnych korpusach tekstu i potrafią reprezentować złożone zależności semantyczne, składniowe i pragmatyczne. Mimo że modele te wykazują wysoką jakość w wielu zadaniach, ich skuteczne wykorzystanie w konkretnych zastosowaniach zwykle wymaga etapu dostrajania, czyli fine-tuningu.
+
+Fine-tuning polega na dalszym trenowaniu modelu bazowego na danych specyficznych dla danego zadania, tak aby model nauczył się wykonywać je z wysoką skutecznością. W klasycznym podejściu dostraja się wszystkie parametry modelu, co oznacza aktualizację setek milionów, a nawet miliardów wag. Pozwala to osiągnąć bardzo dobre wyniki, ponieważ cały model może dopasować się do nowej dystrybucji danych.
+
+Pełne dostrajanie dużych modeli jest jednak bardzo kosztowne obliczeniowo. 
+Ze względów takich jak ogromna liczba parametrów, duże zużycie pamięci GPU, brak skalowalności czy wysoki koszt czasowy, pełny fine-tuning jest często nieopłacalny, zwłaszcza w warunkach akademickich lub w mniejszych projektach badawczych.
+
+\subsubsection{PEFT}
+Aby zmniejszyć koszty czasowe i pamięciowe, zaproponowano grupę technik określanych jako \\
+Parameter-Efficient Fine-Tuning (PEFT). 
+W podejściach PEFT zamraża się większość parametrów modelu, a dostrajaniu podlega jedynie niewielka dodatkowa liczba nowych parametrów - zwykle ułamek procenta całego modelu. Pozwala to uzyskać wydajność jakościową zbliżoną do pełnego fine-tuningu przy znacznym ograniczeniu wymagań obliczeniowych.\\
+
+Do najważniejszych metod PEFT należą:
+\begin{enumerate}
+    \item Adaptery - małe moduły, najczęściej niewielkie sieci dwuwarstwowe, wpinane pomiędzy warstwy transformera. Podczas treningu parametry modelu bazowego są zamrożone, trenowane są wyłącznie parametry adapterów. Pozwala to uzyskać bardzo mały koszt pamięciowy, ponieważ liczba dodatkowych parametrów jest niewielka (zwykle mniej niż 3\% modelu).\\
+    
+    \item LoRA (Low-Rank Adaptation) - LoRA zakłada, że zmiany wymagane do dostosowania wag modelu do nowego zadania można aproksymować macierzą niskiego rzędu. Oznacza to, że zamiast aktualizować dużą macierz wag W uczymy dwie małe macierze A i B które po przemnożeniu dają zbliżony efekt. Dzięki temu trenowanych parametrów może być kilkadziesiąt razy mniej, niż w przypadku pełnego fine-tuningu.\\
+
+    \item Prefix Tuning - do wejścia modelu dodaje się specjalny, prefiks w przestrzeni ukrytej modelu. Model bazowy pozostaje zamrożony, a uczone są jedynie te dodatkowe reprezentacje. Metoda ta jest szczególnie skuteczna w zadaniach generatywnych (seq2seq).\\
+
+    \item Prompt Tuning / Soft Prompting - Prompt tuning polega na dodaniu specjalnych, uczonych tokenów promptu do wejścia modelu, które sterują zachowaniem modelu bez zmiany jego wewnętrznych wag. Jest to ekstremalnie lekka forma PEFT, często wymaga najmniej parametrów ze wszystkich metod.
+
+\end{enumerate}
+
+Metody PEFT stanowią atrakcyjną alternatywę dla pełnego fine-tuningu dużych modeli językowych. Pozwalają osiągnąć wysoką jakość wyników przy znacznie mniejszych wymaganiach pamięciowych i obliczeniowych, a także umożliwiają przechowywanie wielu „dostosowanych wersji” danego modelu w formie małych dodatków zamiast pełnych kopii sieci.
+
+
+\subsection{Cel projektu}
+
+Celem projektu jest zbadanie efektywności wybranych technik PEFT w kontekście różnych zadań przetwarzania języka naturalnego. W ramach pracy zostaną wybrane co najmniej dwa odmienne typy zadań NLP, obejmujące zarówno klasyfikację, jak i zadanie sekwencyjne typu seq2seq, co pozwoli na ocenę działania metod PEFT w różnych scenariuszach. Projekt zakłada implementację oraz porównanie kilku podejść, takich jak LoRA, Prefix Tuning oraz Adaptery, zastosowanych do modeli bazowych odpowiednich dla danych zadań. Analiza obejmie ocenę jakości modeli, a także porównanie kosztów obliczeniowych, czasu trenowania oraz liczby i rozmiaru parametrów aktualizowanych w poszczególnych metodach. Celem końcowym jest ocena, na ile metody PEFT pozwalają uzyskać wyniki zbliżone do pełnego dostrajania modeli językowych przy jednoczesnym znaczącym zmniejszeniu nakładów obliczeniowych.
+
+\subsection{Wybór zadań NLP}
+
+W projekcie zdecydowano się na realizację dwóch odmiennych typów zadań przetwarzania języka naturalnego: zadania klasyfikacji tekstu oraz zadania sekwencyjnego typu seq2seq. Dobór zadań ma na celu zbadanie efektywności metod PEFT zarówno w kontekście analizy tekstu, jak i jego generowania. W obu przypadkach wybrane zostały zbiory danych powszechnie stosowane w badaniach NLP, co pozwoli na rzetelną ocenę jakości modeli.
+
+\subsubsection{Zadanie klasyfikacyjne}
+
+Do zadania klasyfikacji tekstu wybrano zbiór danych \textbf{AI-GA (Artificial Intelligence Generated Abstracts)}, zawierający 28\,662 przykłady obejmujące tytuł, abstrakt oraz etykietę. Zbiór jest zbalansowany i składa się w 50\% z abstraktów wygenerowanych przez modele językowe (etykieta 1), a w pozostałych 50\% z abstraktów oryginalnych (etykieta 0).  
+
+Zadanie polega na rozróżnieniu, czy dany abstrakt został wygenerowany przez system AI, czy pochodzi od człowieka. Charakter danych stanowi dobre wyzwanie dla modeli encoderowych, a jednocześnie pozwala ocenić skuteczność metod PEFT w klasyfikacji bardziej złożonych struktur semantycznych niż krótkie opinie czy recenzje.
+
+Dane zostaną podzielone na następujące części:
+\begin{itemize}
+    \item 80\% – zbiór treningowy,
+    \item 10\% – zbiór walidacyjny,
+    \item 10\% – zbiór testowy.
+\end{itemize}
+
+Do ewaluacji modeli zastosowane zostaną metryki:
+\begin{itemize}
+    \item \textbf{Accuracy},
+    \item \textbf{F1-score (macro)}
+\end{itemize}
+
+\subsubsection{Zadanie seq2seq}
+
+W zadaniu sekwencyjnym wykorzystany zostanie zbiór danych \textbf{XL-Sum}, zawierający artykuły z serwisu BBC wraz z ich profesjonalnymi streszczeniami w 44 językach. Jest to zbiór powszechnie stosowany w badaniach nad wielojęzycznym streszczaniem tekstu.
+
+Zgodnie z sugestią, aby wyjść poza język angielski i sprawdzić działanie metod w różnych warunkach dostępności danych, do eksperymentów wybrano dwa języki:
+\begin{itemize}
+    \item \textbf{Hiszpański (Spanish)} – jako przykład języka \textit{high-resource}, dla którego dostępna jest duża liczba par artykuł-streszczenie.
+    \item \textbf{Nepalski (Nepali)} – jako przykład języka \textit{low-resource}, reprezentującego mniejszy zasób danych treningowych.
+\end{itemize}
+
+Celem zadania jest wygenerowanie streszczenia artykułu na podstawie jego pełnej treści. Takie sformułowanie problemu pozwala ocenić zdolność modeli do przetwarzania sekwencji w różnych językach oraz ich efektywność w warunkach ograniczonej liczby danych (przypadek low-resource).
+
+Do ewaluacji jakości generowanych streszczeń zastosowane zostaną metryki:
+
+\begin{itemize}
+    \item \textbf{ROUGE-1},
+    \item \textbf{ROUGE-2},
+    \item \textbf{ROUGE-L},
+\end{itemize}
+
+które mierzą odpowiednio zgodność n-gramową oraz zgodność na poziomie najdłuższego wspólnego podciągu między tekstem wygenerowanym a streszczeniem referencyjnym.
+
+
+\subsection{Wybór modeli bazowych}
+
+W projekcie planujemy wykorzystać dwa modele bazowe reprezentujące odmienne architektury transformacyjne: BERT oraz T5. Modele zostały dobrane tak, aby odzwierciedlał inny typ zadania NLP oraz umożliwiały rzetelne porównanie metod PEFT w różnych kontekstach obliczeniowych i funkcjonalnych.\\
+
+BERT (Bidirectional Encoder Representations from Transformers) to jedna z najpopularniejszych rodzin modeli typu encoder, zaprojektowanych do zadań analizy i rozumienia tekstu. W projekcie planujemy wykorzystać wariant BERT-base, który zawiera 110 milionów parametrów i stanowi powszechnie stosowany punkt odniesienia w badaniach akademickich.\\
+
+Model BERT do zadania klasyfikacji został przez nas wybrany m.in. ze względu na to, że jest dobrze udokumentowany i szeroko wspierany przez biblioteki HuggingFace Transformers, PEFT i AdapterHub, oraz dlatego, że model ma umiarkowany rozmiar, który pozwala na komfortowe przeprowadzanie eksperymentów na dostępnych GPU (np. Google Colab).\\
+
+Drugim wybranym modelem (do zadania seq2seq) jest \textbf{mT5-small} (Multilingual T5). Jest to wielojęzyczny wariant modelu T5, trenowany na korpusie mC4 obejmującym 101 języków. Podobnie jak T5, opiera się on na architekturze encoder–decoder, co czyni go naturalnym wyborem do zadań generowania sekwencji w środowisku wielojęzycznym. Wariant \textit{small} liczy około 300 milionów parametrów (ze względu na większy słownik w porównaniu do T5), co nadal stanowi rozsądny kompromis dla eksperymentów PEFT.\\
+
+Wybór mT5-small jest podyktowany koniecznością obsługi języków innych niż angielski (w naszym przypadku hiszpańskiego i nepalskiego) oraz chęcią sprawdzenia, jak metody PEFT radzą sobie z adaptacją modelu wielojęzycznego do konkretnych języków docelowych.\\
+
+Połączenie modeli BERT-base (encoder, monolingual/English) i mT5-small (encoder–decoder, multilingual) pozwala objąć dwa kluczowe typy zadań NLP oraz różne scenariusze językowe.
+
+\subsection{Wybór metod PEFT}
+
+W projekcie zdecydowano się na zastosowanie trzech reprezentatywnych metod Parameter-Efficient Fine-Tuning, obejmujących odmienne sposoby wprowadzania dodatkowych parametrów do modeli. Ich dobór pozwoli zbadać wpływ strukturalnych różnic pomiędzy technikami na jakość i koszty trenowania zarówno w zadaniach klasyfikacyjnych, jak i generatywnych.
+
+Wybrane metody to:
+
+\begin{enumerate}
+    \item \textbf{Adaptery} – technika polegająca na wprowadzeniu niewielkich modułów sieciowych między warstwy modelu. Dzięki temu możliwe jest trenowanie jedynie dodatkowych parametrów, co pozwala na zachowanie niskich kosztów pamięciowych i stabilnego procesu uczenia.
+
+    \item \textbf{LoRA (Low-Rank Adaptation)} – metoda oparta na dekompozycji wag na macierze niskiego rzędu. Umożliwia efektywne dostrajanie modeli przy minimalnym zwiększeniu liczby uczonych parametrów oraz zachowaniu dobrej jakości wyników w różnych typach zadań.
+
+    \item \textbf{Prefix Tuning} – podejście bazujące na uczonych wektorach prefiksowych dodawanych do reprezentacji ukrytej modelu. Jest ono szczególnie użyteczne w modelach encoder–decoder, dlatego w projekcie zostanie zastosowane przede wszystkim w kontekście zadania seq2seq.
+\end{enumerate}
+
+Zestawienie tych trzech metod pozwala na porównanie podejść różniących się stopniem ingerencji w architekturę modelu oraz sposobem wprowadzania dodatkowych informacji, co umożliwi uzyskanie pełniejszego obrazu ich efektywności.
+
+
+
+\subsection{Plan eksperymentów}
+
+Plan eksperymentów został przygotowany w taki sposób, aby umożliwić porównanie metod PEFT w sposób kontrolowany i jednorodny dla dwóch wybranych zadań: klasyfikacji tekstu oraz streszczania tekstu. W każdym eksperymencie zastosowane zostaną te same zasady podziału danych, jednakowe metody oceny oraz spójna konfiguracja treningowa, co pozwoli skupić uwagę na różnicach wynikających z użytej techniki dostrajania.
+
+W eksperymentach wykorzystane będą:
+
+\begin{itemize}
+    \item \textbf{BERT-base} – model encoderowy dla zadania klasyfikacji,
+    \item \textbf{mT5-small} – model encoder–decoder dla zadania seq2seq.
+\end{itemize}
+
+Dla każdego modelu wykonane zostaną cztery warianty treningu:
+
+\begin{itemize}
+    \item pełny fine-tuning (jako punkt odniesienia),
+    \item LoRA,
+    \item Adaptery,
+    \item Prefix Tuning (dla mT5 również jako metoda szczególnie odpowiednia dla architektury encoder–decoder).
+\end{itemize}
+
+Wszystkie konfiguracje treningowe będą prowadzone według wspólnego schematu:
+
+\begin{itemize}
+    \item stała liczba epok odpowiednia dla danego modelu,
+    \item ten sam optimizer (AdamW) oraz zbliżone wartości learning rate dostosowane do metody (proces doboru LR zostanie udokumentowany),
+    \item identyczny batch size w podstawowym porównaniu, z dodatkową analizą wpływu metod na „budżet obliczeniowy” (możliwość zwiększenia batch size dzięki redukcji parametrów),
+    \item ten sam podział danych: 80\% trening, 10\% walidacja, 10\% test.
+\end{itemize}
+
+Do oceny wyników zastosowane zostaną metryki właściwe dla danego typu zadania:
+
+\begin{itemize}
+    \item \textbf{dla klasyfikacji (BERT)}: accuracy oraz F1-score (macro),
+    \item \textbf{dla streszczania (mT5)}: ROUGE-1, ROUGE-2, ROUGE-L.
+\end{itemize}
+
+Oprócz jakości predykcji analizowane będą również:
+
+\begin{itemize}
+    \item liczba trenowanych parametrów,
+    \item całkowity czas trenowania,
+    \item stabilność uczenia w przebiegu epok.
+\end{itemize}
+
+Pozwoli to określić nie tylko skuteczność metod PEFT, ale również ich praktyczną opłacalność obliczeniową. Analiza końcowa obejmie porównania wewnątrz każdego zadania oraz między zadaniami, co umożliwi ocenę, czy wybrane techniki PEFT zachowują podobną efektywność w różnych typach problemów NLP.
+
+\section{Wstępne wyniki}
+\subsection{Przygotowanie środowiska i wstępna weryfikacja pipeline'u}
+
+
+\end{document}
