@@ -4,7 +4,6 @@
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx} %pakiet do wstawiania grafiki
 \usepackage[hyphens]{url} %pakiet do wstawiania linkow
-%\usepackage[hidelinks,breaklinks]{hyperref}
 \usepackage{authblk}%pakiet do tworzenia afiliacji
 \usepackage{tabularx}%pakiet do tabel
 \usepackage[a4paper, left=2cm, right=2cm, top=3cm, bottom=3cm]{geometry}
@@ -14,7 +13,6 @@
 \usepackage{hyperref}%pakiet do m.in. kolorowania linkow
 \usepackage{enumitem}
 \usepackage[tablegrid,owncaptions]{vhistory}
-\usepackage[utf8]{inputenc}
 \usepackage{minted}
 
 \begin{document}
@@ -67,9 +65,9 @@ Do najważniejszych metod PEFT należą:
 \begin{enumerate}
     \item Adaptery - małe moduły, najczęściej niewielkie sieci dwuwarstwowe, wpinane pomiędzy warstwy transformera. Podczas treningu parametry modelu bazowego są zamrożone, trenowane są wyłącznie parametry adapterów. Pozwala to uzyskać bardzo mały koszt pamięciowy, ponieważ liczba dodatkowych parametrów jest niewielka (zwykle mniej niż 3\% modelu).\\
     
-    \item LoRA (Low-Rank Adaptation) - LoRA zakłada, że zmiany wymagane do dostosowania wag modelu do nowego zadania można aproksymować macierzą niskiego rzędu. Oznacza to, że zamiast aktualizować dużą macierz wag W uczymy dwie małe macierze A i B które po przemnożeniu dają zbliżony efekt. Dzięki temu trenowanych parametrów może być kilkadziesiąt razy mniej, niż w przypadku pełnego fine-tuningu.\\
+    \item LoRA (Low-Rank Adaptation) - LoRA zakłada, że zmiany wymagane do dostosowania wag modelu do nowego zadania można aproksymować macierzą niskiego rzędu. Oznacza to, że zamiast aktualizować dużą macierz wag $W$, uczymy dwie małe macierze $A$ i $B$, które po przemnożeniu dają zbliżony efekt. Dzięki temu trenowanych parametrów może być kilkadziesiąt razy mniej, niż w przypadku pełnego fine-tuningu.\\
 
-    \item Prefix Tuning - do wejścia modelu dodaje się specjalny, prefiks w przestrzeni ukrytej modelu. Model bazowy pozostaje zamrożony, a uczone są jedynie te dodatkowe reprezentacje. Metoda ta jest szczególnie skuteczna w zadaniach generatywnych (seq2seq).\\
+    \item Prefix Tuning - do wejścia modelu dodaje się specjalny prefiks w przestrzeni ukrytej modelu. Model bazowy pozostaje zamrożony, a uczone są jedynie te dodatkowe reprezentacje. Metoda ta jest szczególnie skuteczna w zadaniach generatywnych (seq2seq).\\
 
     \item Prompt Tuning / Soft Prompting - Prompt tuning polega na dodaniu specjalnych, uczonych tokenów promptu do wejścia modelu, które sterują zachowaniem modelu bez zmiany jego wewnętrznych wag. Jest to ekstremalnie lekka forma PEFT, często wymaga najmniej parametrów ze wszystkich metod.
 
@@ -184,7 +182,7 @@ Wszystkie konfiguracje treningowe będą prowadzone według wspólnego schematu:
 
 \begin{itemize}
     \item stała liczba epok odpowiednia dla danego modelu,
-    \item ten sam optimizer (AdamW) oraz zbliżone wartości learning rate dostosowane do metody (proces doboru LR zostanie udokumentowany),
+    \item ten sam optymalizator (AdamW) oraz zbliżone wartości learning rate dostosowane do metody (proces doboru LR zostanie udokumentowany),
     \item identyczny batch size w podstawowym porównaniu, z dodatkową analizą wpływu metod na „budżet obliczeniowy” (możliwość zwiększenia batch size dzięki redukcji parametrów),
     \item ten sam podział danych: 80\% trening, 10\% walidacja, 10\% test.
 \end{itemize}
@@ -207,7 +205,88 @@ Oprócz jakości predykcji analizowane będą również:
 Pozwoli to określić nie tylko skuteczność metod PEFT, ale również ich praktyczną opłacalność obliczeniową. Analiza końcowa obejmie porównania wewnątrz każdego zadania oraz między zadaniami, co umożliwi ocenę, czy wybrane techniki PEFT zachowują podobną efektywność w różnych typach problemów NLP.
 
 \section{Wstępne wyniki}
-\subsection{Przygotowanie środowiska i wstępna weryfikacja pipeline'u}
 
+\subsection{Przygotowanie danych}
+W ramach wstępnych prac przygotowano i przeanalizowano wybrane zbiory danych. Poniżej przedstawiono liczności podzbiorów (treningowego, walidacyjnego i testowego) oraz podstawowe statystyki dotyczące długości tekstów.
+
+\subsubsection{Liczności zbiorów}
+Zbiory zostały podzielone w standardowych proporcjach.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Zbiór danych} & \textbf{Train} & \textbf{Validation} & \textbf{Test} \\ \hline
+AI-GA & 22\,930 & 2\,866 & 2\,866 \\ \hline
+XL-Sum (Spanish) & 38\,110 & 4\,763 & 4\,763 \\ \hline
+XL-Sum (Nepali) & 5\,808 & 725 & 725 \\ \hline
+\end{tabular}
+\caption{Liczności podzbiorów dla poszczególnych zadań.}
+\label{tab:dataset-sizes}
+\end{table}
+
+\subsubsection{Statystyki długości tekstów}
+Analiza długości tekstów (liczona w słowach) pozwala na dobór odpowiednich parametrów modelu, takich jak maksymalna długość sekwencji wejściowej.
+
+\begin{itemize}
+    \item \textbf{AI-GA}: Średnia długość abstraktu wynosi 189.81 słów.
+    \item \textbf{XL-Sum (Spanish)}:
+    \begin{itemize}
+        \item Średnia długość artykułu: 832.78 słów
+        \item Średnia długość streszczenia: 27.93 słów
+    \end{itemize}
+    \item \textbf{XL-Sum (Nepali)}:
+    \begin{itemize}
+        \item Średnia długość artykułu: 376.84 słów
+        \item Średnia długość streszczenia: 19.82 słów
+    \end{itemize}
+\end{itemize}
+
+\subsection{Wyniki bazowe (Baselines)}
+Przeprowadzono wstępne eksperymenty mające na celu ustanowienie punktów odniesienia (baselines) dla dalszych badań nad metodami PEFT.
+
+\subsubsection{Klasyfikacja (BERT)}
+Model BERT-base został poddany pełnemu dostrajaniu (full fine-tuning) przez 1 epokę na zbiorze AI-GA. Uzyskane wyniki wskazują na bardzo wysoką jakość modelu już po krótkim treningu, co sugeruje, że zadanie rozróżniania tekstów generowanych przez AI od ludzkich jest dla tego modelu stosunkowo łatwe przy dostępnej ilości danych.
+
+Wyniki po 1 epoce:
+\begin{itemize}
+    \item \textbf{Accuracy}: 99.86\%
+    \item \textbf{F1-score (macro)}: 99.86\%
+    \item \textbf{Eval Loss}: 0.0043
+\end{itemize}
+
+\subsubsection{Streszczanie (mT5 Zero-shot)}
+Dla zadania streszczania sprawdzono możliwości modelu mT5-small w trybie zero-shot (bez dostrajania) na próbce 200 przykładów dla każdego języka.
+
+Wyniki (metryki ROUGE):
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Język} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} \\ \hline
+Spanish & 0.0419 & 0.0085 & 0.0364 \\ \hline
+Nepali & 0.0000 & 0.0000 & 0.0000 \\ \hline
+\end{tabular}
+\caption{Wyniki zero-shot dla modelu mT5-small.}
+\label{tab:mt5-zeroshot}
+\end{table}
+
+Niskie wyniki dla języka hiszpańskiego oraz zerowe dla nepalskiego potwierdzają konieczność dostrajania modelu (fine-tuning lub PEFT), aby uzyskać użyteczne streszczenia w tych językach. Model bazowy bez treningu nie jest w stanie generować poprawnych streszczeń w zadanych językach docelowych.
+
+\subsection{Wnioski i wpływ na dalsze prace}
+
+Analiza wstępnych wyników pozwala na sformułowanie kluczowych wniosków.
+
+\begin{enumerate}
+    \item \textbf{Wysoka skuteczność w zadaniu klasyfikacji} -- Wynik bliski 100\% dla modelu BERT na zbiorze AI-GA sugeruje, że zadanie rozróżniania tekstów maszynowych od ludzkich w tym zbiorze jest dla modelu relatywnie proste.
+    \begin{itemize}
+        \item \textit{Implikacja:} W porównaniu metod PEFT różnice w Accuracy mogą być znikome. Dlatego w analizie szczególny nacisk położymy na porównanie wydajności (czas, pamięć) oraz szybkości zbieżności (jak szybko model osiąga wysoki wynik). Rozważymy również scenariusz \textit{low-data} (trening na mniejszym podzbiorze), aby utrudnić zadanie i uwypuklić różnice w efektywności metod.
+    \end{itemize}
+
+    \item \textbf{Konieczność adaptacji w zadaniu seq2seq} -- Zerowe lub bliskie zeru wyniki modelu mT5 w trybie zero-shot potwierdzają, że model ten nie posiada natywnej umiejętności streszczania w badanych językach bez dodatkowego treningu.
+    \begin{itemize}
+        \item \textit{Implikacja:} Jest to dobre środowisko testowe dla metod PEFT, ponieważ będziemy obserwować proces uczenia zadania od zera. Kluczowym pytaniem badawczym staje się, czy metody o małej liczbie parametrów (np. Adaptery, LoRA) będą miały wystarczającą pojemność, aby nauczyć model generowania poprawnego językowo i merytorycznie streszczenia, zwłaszcza dla języka nepalskiego (low-resource).
+    \end{itemize}
+\end{enumerate}
 
 \end{document}
