@@ -17,8 +17,8 @@ def average_length_xlsum(ds, name=""):
     summary_lengths = [len(s.split()) for s in train["summary"]]
 
     print(f"\n{name}:")
-    print(f"  Średnia długość artykułu: {np.mean(text_lengths):.2f} słów")
-    print(f"  Średnia długość streszczenia: {np.mean(summary_lengths):.2f} słów")
+    print(f"Średnia długość artykułu: {np.mean(text_lengths):.2f} słów")
+    print(f"Średnia długość streszczenia: {np.mean(summary_lengths):.2f} słów")
 
 # ------------------------------------------------------------
 # 3. WYŚWIETLENIE JEDNEGO PRZYKŁADU Z KAŻDEGO DATASETU
