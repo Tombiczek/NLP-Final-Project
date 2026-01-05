@@ -291,5 +291,189 @@ Analiza wstępnych wyników pozwala na sformułowanie kluczowych wniosków.
 
 \section{Finalne wyniki}
 
+\subsection{Baseline}
 
+\subsubsection{Full-Fine-Tune BERT}
+W pierwszej fazie eksperymentów przeprowadzono pełne dostrajanie (full fine-tuning) modelu BERT na zbiorze AI-GA przez 3 epoki. Model osiągnął niemal perfekcyjne wyniki, poprawiając rezultaty uzyskane we wstępnej fazie.
+
+Wyniki po 3 epoce:
+\begin{itemize}
+    \item \textbf{Eval Loss}: 0.0094
+    \item \textbf{Accuracy}: 99.90\%
+    \item \textbf{F1-score (macro)}: 99.90\%
+\end{itemize}
+
+Wysokie wartości metryk Accuracy (odsetek poprawnych predykcji) oraz F1 Macro (średnia arytmetyczna F1-score dla każdej klasy) wskazują na niemal bezbłędne działanie modelu. Zbalansowanie klas w zbiorze danych sprawia, że obie metryki są zbliżone, a stosowanie F1-score nie wnosi istotnych różnic w interpretacji. Wyniki te sugerują, że zadanie klasyfikacji tekstów generowanych przez AI jest dla modelu BERT relatywnie proste. Nie zaobserwowano również oznak wycieku danych między zbiorami treningowym a testowym.
+
+\subsubsection{Full-Fine-Tune mT5 (Hiszpański)}
+Dla modelu mT5 w języku hiszpańskim celem było ustalenie górnego pułapu jakości (baseline) poprzez pełne dostrajanie. Ze względu na ograniczenia zasobów obliczeniowych (Google Colab), trening zakończono po 2 epokach, co jednak pozwoliło na uzyskanie solidnego punktu odniesienia.
+
+Wyniki:
+\begin{itemize}
+    \item \textbf{ROUGE-1}: 0.2453
+    \item \textbf{ROUGE-2}: 0.0713
+    \item \textbf{ROUGE-L}: 0.1859
+\end{itemize}
+
+\subsubsection{Full-Fine-Tune mT5 (Nepalski)}
+Następnie przeprowadzono pełny fine-tuning modelu mT5 na zbiorze low-resource (nepalski). Mimo że we wstępnych wynikach (zero-shot) model nie generował poprawnych streszczeń, oczekiwano poprawy po treningu.
+
+Wyniki:
+\begin{itemize}
+    \item \textbf{ROUGE-1}: 0.0000
+    \item \textbf{ROUGE-2}: 0.0000
+    \item \textbf{ROUGE-L}: 0.0000
+\end{itemize}
+
+Mimo zerowych wartości metryk ROUGE, proces uczenia przebiegał poprawnie z punktu widzenia optymalizacji funkcja straty systematycznie malała, a model generował sekwencje o niezerowej długości\footnote{Wykres przebiegu treningu dostępny pod adresem: \url{https://wandb.ai/tombik-warsaw-university-of-technology/nlp-project-peft/runs/y89fgtys/panel/gyjco2lrh?nw=nwusertombik}}. Sugeruje to, że model nie uległ degeneracji. Zaobserwowana rozbieżność między spadkiem Loss a zerowym ROUGE wskazuje na potencjalne problemy z ewaluacją. Prawdopodobnym wyjaśnieniem jest ograniczona skuteczność standardowej implementacji metryki ROUGE dla języków o alfabecie innym niż łaciński (problem z tokenizacją) lub specyfika morfologiczna języka nepalskiego.
+
+\subsubsection{Full-Fine-Tuning-Downsamples mT5 (Hiszpański)}
+Aby zweryfikować hipotezę, czy mała ilość danych (jak w przypadku nepalskiego) jest wystarczająca do nauczenia modelu poprawnego streszczania, przeprowadzono dodatkowy eksperyment. Zbiór treningowy dla języka hiszpańskiego został ograniczony do liczności zbioru nepalskiego.
+
+Wyniki:
+\begin{itemize}
+    \item \textbf{ROUGE-1}: 0.2275
+    \item \textbf{ROUGE-2}: 0.0501
+    \item \textbf{ROUGE-L}: 0.1722
+\end{itemize}
+
+Wyniki są tylko nieznacznie niższe od uzyskanych na pełnym zbiorze. Potwierdza to, że nawet ograniczona ilość danych jest wystarczająca do efektywnego treningu, o ile dane są dobrej jakości.
+
+\subsection{Klasyfikacja (BERT)}
+
+\subsubsection{LoRA}
+Dla metody LoRA zastosowano następującą konfigurację:
+\begin{minted}{python}
+peft_config_bert_lora = LoraConfig(
+    task_type=TaskType.SEQ_CLS,
+    inference_mode=False,
+    r=16,
+    lora_alpha=32,
+    lora_dropout=0.1,
+    bias="none",
+    target_modules=["query", "value"]
+)
+\end{minted}
+
+Parametr $r$ (rank) w metodzie LoRA determinuje wymiar macierzy niskiego rzędu, które służą do aproksymacji zmian wag modelu. Wybór wartości $r$ jest kluczową decyzją projektową.
+
+W pracy wprowadzającej metodę LoRA (Hu et al., 2021)\footnote{Edward J. Hu et al., \textit{LoRA: Low-Rank Adaptation of Large Language Models}, 2021. Rozdział 7.2. Dostępne pod adresem: \url{https://doi.org/10.48550/arXiv.2106.09685}}, autorzy wykazują, że dla standardowych zadań w języku angielskim wystarczające są bardzo niskie wartości rzędu $r=4$ lub $r=8$. Jednakże, jak zauważają w przypisie nr 6, w sytuacji gdy język zadania docelowego różni się od języka pre-treningu (co ma miejsce w naszej części eksperymentów z językiem hiszpańskim), małe wartości $r$ mogą nie wystarczyć do skutecznej adaptacji. Z tego względu, oraz dla zachowania spójności metodologicznej w całym projekcie, zdecydowaliśmy się na wartość $r=16$. Parametr $\alpha=32$ (skalowanie) został dobrany proporcjonalnie do $r$ (zazwyczaj $\alpha \approx 2r$), co pomaga w stabilizacji treningu. Wybór modułów \texttt{query} i \texttt{value} w mechanizmie atencji jest standardową praktyką dla modeli BERT, pozwalającą na efektywne dostrajanie reprezentacji semantycznych.
+
+Wyniki:
+\begin{itemize}
+    \item \textbf{Accuracy}: 99.48\%
+\end{itemize}
+
+Wynik jest tylko nieznacznie gorszy od pełnego dostrajania (99.90\%), natomiast czas treningu uległ skróceniu (2417s vs 2708s, ok. 12\% szybciej). Wskazuje to na wysoką efektywność metody LoRA.
+
+\subsubsection{Prefix Tuning}
+Konfiguracja dla metody Prefix Tuning:
+\begin{minted}{python}
+peft_config_bert_prefix = PrefixTuningConfig(
+    task_type=TaskType.SEQ_CLS,
+    inference_mode=False,
+    num_virtual_tokens=20
+)
+\end{minted}
+
+Parametr \texttt{inference\_mode=False} definiuje tryb pracy modelu jako treningowy, co jest niezbędne do aktualizacji parametrów prefiksu. Liczba wirtualnych tokenów została ustalona na 20. Jest to wartość często stosowana w literaturze jako punkt wyjścia, zbyt mała liczba może nie wystarczyć do zakodowania zadania, a zbyt duża utrudnia optymalizację.
+
+Wyniki:
+\begin{itemize}
+    \item \textbf{Accuracy}: 77.11\%
+\end{itemize}
+
+Mimo najkrótszego czasu treningu (2294s), metoda ta osiągnęła znacząco gorsze wyniki niż pozostałe podejścia. Sugeruje to, że dla tego konkretnego zadania i modelu, Prefix Tuning ma zbyt małą pojemność lub jest trudniejszy w optymalizacji.
+
+\subsubsection{Adapter (Houlsby)}
+Zastosowano architekturę adapterów typu Houlsby ponieważ architektura ta jest uznawana za standard w dziedzinie adapterów. W przeciwieństwie do nowszych rozwiązań (np. Pfeiffer), umieszcza ona moduły adapterów po obu podwarstwach (Attention i Feed-Forward) w każdym bloku transformera. Choć zwiększa to liczbę parametrów, zapewnia większą elastyczność i pozwala uniknąć problemów z brakiem adapterów w ostatnich warstwach.\footnote{Informacje znalezione pod adresem: \url{https://github.com/adapter-hub/adapters/issues/168}}
+
+Wyniki:
+\begin{itemize}
+    \item \textbf{Accuracy}: 99.37\%
+\end{itemize}
+
+Wyniki są bardzo zbliżone do metody LoRA, a czas treningu (2453s) jest porównywalny. Stanowi to doskonałą alternatywę dla LoRA, oferując wysoką jakość przy zredukowanych kosztach.
+
+\subsection{Streszczanie (mT5)}
+
+\subsubsection{LoRA}
+Konfiguracja LoRA dla modelu mT5:
+\begin{minted}{python}
+peft_config_mt5_lora = LoraConfig(
+    task_type=TaskType.SEQ_2_SEQ_LM,
+    inference_mode=False,
+    r=16,
+    lora_alpha=32,
+    lora_dropout=0.1,
+    bias="none",
+    target_modules=["q", "v"]
+)
+\end{minted}
+
+Parametry dobrano analogicznie do modelu BERT, dostosowując nazwy modułów (\texttt{q}, \texttt{v}) do specyfiki architektury T5.
+
+Wyniki (na pełnym zbiorze hiszpańskim):
+\begin{itemize}
+    \item \textbf{ROUGE-1}: 0.2477
+    \item \textbf{ROUGE-2}: 0.0631
+    \item \textbf{ROUGE-L}: 0.1889
+\end{itemize}
+
+Wyniki są porównywalne z pełnym fine-tuningiem (szczególnie w wariancie downsampled), co potwierdza skuteczność LoRA w zadaniach generatywnych.
+
+\subsubsection{Prefix Tuning}
+Konfiguracja Prefix Tuning:
+\begin{minted}{python}
+peft_config_mt5_prefix = PrefixTuningConfig(
+    task_type=TaskType.SEQ_2_SEQ_LM,
+    inference_mode=False,
+    num_virtual_tokens=30
+)
+\end{minted}
+
+Zwiększono liczbę wirtualnych tokenów do 30, aby zwiększyć pojemność modelu w bardziej złożonym zadaniu seq2seq.
+
+Wyniki:
+\begin{itemize}
+    \item \textbf{ROUGE-1}: 0.1384
+    \item \textbf{ROUGE-2}: 0.0224
+    \item \textbf{ROUGE-L}: 0.1197
+\end{itemize}
+
+Podobnie jak w przypadku BERT, wyniki są wyraźnie słabsze od konkurencji. Czas treningu (6140s) był jednak znacznie krótszy niż dla LoRA (8819s), co potwierdza korelację między redukcją parametrów a szybkością uczenia, niestety w tym przypadku kosztem jakości.
+
+\subsubsection{Adapter (Pfeiffer)}
+Zastosowano architekturę adapterów typu Pfeiffer ponieważ w modelach seq2seq, takich jak mT5, architektura Pfeiffer jest często preferowana ze względu na większą efektywność (jeden adapter na blok). Pozwala to na zachowanie dobrego balansu między wydajnością a kosztami obliczeniowymi.
+
+Wyniki:
+\begin{itemize}
+    \item \textbf{ROUGE-1}: 0.2546
+    \item \textbf{ROUGE-2}: 0.0662
+    \item \textbf{ROUGE-L}: 0.1911
+\end{itemize}
+
+Metoda ta, mimo najdłuższego czasu treningu (9454s), osiągnęła najlepsze wyniki, przewyższając w metrykach ROUGE-1 i ROUGE-L nawet pełny fine-tuning (baseline). Wskazuje to, że adaptery Pfeiffera są niezwykle skuteczne w adaptacji modelu mT5 do nowych języków.
+
+% Dopisanie sekcji LowData (mT5-es)
+
+\section{Podsumowanie}
+
+Przeprowadzone eksperymenty pozwoliły na porównanie efektywności różnych metod PEFT w dwóch odmiennych zadaniach NLP.
+
+\begin{itemize}
+    \item \textbf{Zadanie klasyfikacji (BERT):} Najlepszym kompromisem okazała się metoda \textbf{LoRA} oraz \textbf{Adaptery (Houlsby)}. Obie techniki pozwoliły uzyskać wyniki niemal identyczne z pełnym fine-tuningiem (Accuracy $>99\%$) przy skróceniu czasu treningu. Prefix Tuning okazał się w tym przypadku niewystarczający.
+    
+    \item \textbf{Zadanie streszczania (mT5):} Tutaj również \textbf{Adaptery (Pfeiffer)} oraz \textbf{LoRA} wykazały się wysoką skutecznością. Co ciekawe, Adaptery pozwoliły uzyskać wyniki lepsze od baseline'u, co może wynikać z mniejszej podatności na przeuczenie przy ograniczonej liczbie parametrów. Prefix Tuning ponownie odstawał jakościowo od reszty stawek.
+\end{itemize}
+
+Warto odnotować, że planowane eksperymenty z metodami PEFT na ograniczonym zbiorze hiszpańskim (low-data) nie zostały w pełni zrealizowane z powodu wyczerpania limitów obliczeniowych (Google Colab). Jednakże wyniki uzyskane przy pełnym fine-tuningu na zredukowanym zbiorze pozwalają przypuszczać, że metody PEFT również poradziłyby sobie dobrze w tym scenariuszu, nie tracąc znacząco na jakości.
+
+Ostatecznie, \textbf{LoRA} jawi się jako najbardziej uniwersalna metoda, oferująca świetny stosunek jakości do czasu treningu w obu typach zadań. \textbf{Adaptery} są silną konkurencją, szczególnie w zadaniach generatywnych, gdzie mogą przewyższać jakością inne podejścia kosztem nieco dłuższego czasu uczenia.
+
+\vspace{30pt}
+
+Link do repozytorium z kodem: \url{https://github.com/Tombiczek/NLP-Final-Project}
+
+Link do repozytorium wandb: \url{https://wandb.ai/tombik-warsaw-university-of-technology/nlp-project-peft/table?nw=nwusertombik}
 \end{document}
