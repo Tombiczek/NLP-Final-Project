@@ -325,7 +325,13 @@ Wyniki:
     \item \textbf{ROUGE-L}: 0.0000
 \end{itemize}
 
-Mimo zerowych wartości metryk ROUGE, proces uczenia przebiegał poprawnie z punktu widzenia optymalizacji funkcja straty systematycznie malała, a model generował sekwencje o niezerowej długości\footnote{Wykres przebiegu treningu dostępny pod adresem: \url{https://wandb.ai/tombik-warsaw-university-of-technology/nlp-project-peft/runs/y89fgtys/panel/gyjco2lrh?nw=nwusertombik}}. Sugeruje to, że model nie uległ degeneracji. Zaobserwowana rozbieżność między spadkiem Loss a zerowym ROUGE wskazuje na potencjalne problemy z ewaluacją. Prawdopodobnym wyjaśnieniem jest ograniczona skuteczność standardowej implementacji metryki ROUGE dla języków o alfabecie innym niż łaciński (problem z tokenizacją) lub specyfika morfologiczna języka nepalskiego.
+Mimo zerowych wartości metryk ROUGE, proces uczenia przebiegał poprawnie z punktu widzenia optymalizacji funkcja straty systematycznie malała, a model generował sekwencje o niezerowej długości. Wykres ten przedstawiony jest na obrazku poniżej:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{full-mt5-ne.png}
+    \caption{Wykres funkcji straty podczas treningu modelu mT5 na zbiorze nepalskim}
+\end{figure}
+Sugeruje to, że model nie uległ degeneracji. Zaobserwowana rozbieżność między spadkiem Loss a zerowym ROUGE wskazuje na potencjalne problemy z ewaluacją. Prawdopodobnym wyjaśnieniem jest ograniczona skuteczność standardowej implementacji metryki ROUGE dla języków o alfabecie innym niż łaciński (problem z tokenizacją) lub specyfika morfologiczna języka nepalskiego.
 
 \subsubsection{Full-Fine-Tuning-Downsamples mT5 (Hiszpański)}
 Aby zweryfikować hipotezę, czy mała ilość danych (jak w przypadku nepalskiego) jest wystarczająca do nauczenia modelu poprawnego streszczania, przeprowadzono dodatkowy eksperyment. Zbiór treningowy dla języka hiszpańskiego został ograniczony do liczności zbioru nepalskiego.
@@ -395,7 +401,7 @@ Wyniki:
 
 Wyniki są bardzo zbliżone do metody LoRA, a czas treningu (2453s) jest porównywalny. Stanowi to doskonałą alternatywę dla LoRA, oferując wysoką jakość przy zredukowanych kosztach.
 
-\subsection{Streszczanie (mT5)}
+\subsection{Streszczanie (mT5) - Hiszapńsi pełny}
 
 \subsubsection{LoRA}
 Konfiguracja LoRA dla modelu mT5:
@@ -455,21 +461,67 @@ Wyniki:
 
 Metoda ta, mimo najdłuższego czasu treningu (9454s), osiągnęła najlepsze wyniki, przewyższając w metrykach ROUGE-1 i ROUGE-L nawet pełny fine-tuning (baseline). Wskazuje to, że adaptery Pfeiffera są niezwykle skuteczne w adaptacji modelu mT5 do nowych języków.
 
-% Dopisanie sekcji LowData (mT5-es)
+
+\subsection{Streszczanie (mT5) - Hiszpański ograniczony}
+
+Eksperyment ten został przeprowadzony jako alternatywa dla badania na języku nepalskim. Ze względu na problemy techniczne związane z ewaluacją modelu dla języka nepalskiego (prawdopodobnie wynikające z niekompatybilności standardowych implementacji metryk ROUGE z alfabetem innym niż łaciński przy naszej tokenizacji), nie uzyskaliśmy wiarygodnych wyników dla tego języka (ROUGE = 0.0), mimo spadku funkcji straty. Aby mimo to zbadać zachowanie metod PEFT w warunkach \textit{low-resource}, zdecydowaliśmy się na ograniczenie zbioru treningowego języka hiszpańskiego do liczności zbioru nepalskiego (5\,808 przykładów). Zbiory walidacyjny i testowy pozostały bez zmian (pełny wymiar dla języka hiszpańskiego), co pozwala na bezpośrednie porównanie wyników z modelami trenowanymi na pełnym zbiorze.
+
+\subsubsection{LoRA}
+Konfiguracja LoRA pozostała taka sama jak w eksperymencie na pełnym zbiorze ($r=16, \alpha=32$).
+
+Wyniki:
+\begin{itemize}
+    \item \textbf{ROUGE-1}: 0.2347
+    \item \textbf{ROUGE-2}: 0.0542
+    \item \textbf{ROUGE-L}: 0.1769
+    \item \textbf{Eval Loss}: 3.0764
+\end{itemize}
+
+Jest to wynik niezwykle interesujący. Porównując go z pełnym dostrajaniem na ograniczonym zbiorze (ROUGE-1: 0.2275), metoda LoRA osiągnęła \textbf{lepsze} wyniki. Sugeruje to, że w warunkach ograniczonej ilości danych, metody PEFT (dzięki mniejszej liczbie parametrów) są mniej podatne na przeuczenie (overfitting) i mogą generalizować lepiej niż pełny fine-tuning. Czas treningu wyniósł 4553s.
+
+\subsubsection{Prefix Tuning}
+Wyniki:
+\begin{itemize}
+    \item \textbf{ROUGE-1}: 0.1015
+    \item \textbf{ROUGE-2}: 0.0101
+    \item \textbf{ROUGE-L}: 0.0831
+    \item \textbf{Eval Loss}: 6.3560
+\end{itemize}
+
+Prefix Tuning w warunkach małej ilości danych poradził sobie najgorzej, osiągając wyniki o połowę gorsze od pozostałych metod. Potwierdza to obserwację z pełnego zbioru, że metoda ta (w standardowej konfiguracji) może być mniej stabilna lub wymagać dłuższego strojenia hiperparametrów dla modelu mT5. Czas treningu był najkrótszy (2853s).
+
+\subsubsection{Adapter (Pfeiffer)}
+Wyniki:
+\begin{itemize}
+    \item \textbf{ROUGE-1}: 0.2298
+    \item \textbf{ROUGE-2}: 0.0548
+    \item \textbf{ROUGE-L}: 0.1756
+    \item \textbf{Eval Loss}: 2.9415
+\end{itemize}
+
+Adaptery Pfeiffera osiągnęły wyniki bardzo zbliżone do metody LoRA i również (nieznacznie) przewyższyły pełny fine-tuning na tym samym podzbiorze danych. Potwierdza to hipotezę o przewadze metod PEFT w scenariuszach \textit{low-resource}. Czas treningu wyniósł 5086s.
 
 \section{Podsumowanie}
 
-Przeprowadzone eksperymenty pozwoliły na porównanie efektywności różnych metod PEFT w dwóch odmiennych zadaniach NLP.
+Przeprowadzone w ramach projektu eksperymenty pozwoliły na dogłębną analizę efektywności metod \\
+Parameter-Efficient Fine-Tuning w porównaniu do pełnego dostrajania modeli (Full Fine-Tuning). Badania objęły dwa rodzaje zadań: klasyfikację (BERT) oraz sekwencyjne generowanie tekstu (mT5), w tym symulowany scenariusz \textit{low-resource}.
 
-\begin{itemize}
-    \item \textbf{Zadanie klasyfikacji (BERT):} Najlepszym kompromisem okazała się metoda \textbf{LoRA} oraz \textbf{Adaptery (Houlsby)}. Obie techniki pozwoliły uzyskać wyniki niemal identyczne z pełnym fine-tuningiem (Accuracy $>99\%$) przy skróceniu czasu treningu. Prefix Tuning okazał się w tym przypadku niewystarczający.
+Decyzja o zmianie zakresu badań w części dotyczącej języka nepalskiego na ograniczony zbiór hiszpański wynikała z problemów metodologicznych przy ewaluacji generacji tekstu w języku o odmiennym alfabecie. Przejście na \textit{downsampled Spanish} pozwoliło na rzetelne porównanie numeryczne (z zachowaniem tej samej metryki ROUGE) i wyciągnięcie wniosków dotyczących efektywności metod przy małej liczbie danych.
+
+Kluczowe wnioski płynące z badań:
+
+\begin{enumerate}
+    \item \textbf{Efektywność w zadaniach klasyfikacyjnych:} Metody takie jak LoRA i Adaptery (Houlsby) są w stanie w pełni dorównać jakością pełnemu dostrajaniu (Accuracy $>99\%$ na zbiorze AI-GA), oferując przy tym redukcję kosztów obliczeniowych i pamięciowych.
     
-    \item \textbf{Zadanie streszczania (mT5):} Tutaj również \textbf{Adaptery (Pfeiffer)} oraz \textbf{LoRA} wykazały się wysoką skutecznością. Co ciekawe, Adaptery pozwoliły uzyskać wyniki lepsze od baseline'u, co może wynikać z mniejszej podatności na przeuczenie przy ograniczonej liczbie parametrów. Prefix Tuning ponownie odstawał jakościowo od reszty stawek.
-\end{itemize}
+    \item \textbf{Przewaga PEFT w scenariuszach low-resource:} Jednym z najważniejszych odkryć projektu jest zachowanie metod PEFT w warunkach ograniczonej ilości danych (hiszpański ograniczony). Zarówno LoRA, jak i Adaptery osiągnęły w tym scenariuszu wyniki \textbf{lepsze} niż pełny fine-tuning (ROUGE-1: $\sim$0.235 vs 0.228). Wskazuje to na właściwości regularyzacyjne PEFT - zamrożenie większości parametrów modelu zapobiega przeuczeniu się na małym zbiorze treningowym, co pozwala na lepszą generalizację.
+    
+    \item \textbf{Jakość w zadaniach generatywnych:} W zadaniu streszczania na pełnym zbiorze, Adaptery (Pfeiffer) okazały się bezkonkurencyjne, przewyższając nawet baseline. LoRA uzyskała wyniki zbliżone do pełnego treningu.
+    
+    \item \textbf{Słabsze wyniki Prefix Tuning:} W naszych eksperymentach metoda ta konsekwentnie osiągała gorsze rezultaty niż konkurencja, zarówno dla modelu BERT, jak i mT5. Może to sugerować większą wrażliwość tej metody na dobór hiperparametrów lub specyfikę testowanych zbiorów danych.
+\end{enumerate}
 
-Warto odnotować, że planowane eksperymenty z metodami PEFT na ograniczonym zbiorze hiszpańskim (low-data) nie zostały w pełni zrealizowane z powodu wyczerpania limitów obliczeniowych (Google Colab). Jednakże wyniki uzyskane przy pełnym fine-tuningu na zredukowanym zbiorze pozwalają przypuszczać, że metody PEFT również poradziłyby sobie dobrze w tym scenariuszu, nie tracąc znacząco na jakości.
+Podsumowując, metody PEFT, w szczególności LoRA i Adaptery, stanowią nie tylko oszczędną alternatywę dla klasycznego treningu, ale w pewnych warunkach (ograniczone dane, ryzyko overfittingu) mogą być podejściem preferowanym ze względu na wyższą jakość końcową modelu.
 
-Ostatecznie, \textbf{LoRA} jawi się jako najbardziej uniwersalna metoda, oferująca świetny stosunek jakości do czasu treningu w obu typach zadań. \textbf{Adaptery} są silną konkurencją, szczególnie w zadaniach generatywnych, gdzie mogą przewyższać jakością inne podejścia kosztem nieco dłuższego czasu uczenia.
 
 \vspace{30pt}
 
