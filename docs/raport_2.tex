@@ -34,12 +34,10 @@
 
         
         \vspace{1cm}
-        {Maja Zglinicka} \\
-        {\small{318860 }} \\
-
-        \vspace{0.5cm}
-        {Tomasz Lewiński} \\
-        {\small{323692 }} \\
+        \begin{tabular}{c@{\hskip 3cm}c}
+             Maja Zglinicka & Tomasz Lewiński \\
+             \small{318860} & \small{323692}
+        \end{tabular}
         
    \end{center}
 % \end{titlepage} 
@@ -505,8 +503,6 @@ Adaptery Pfeiffera osiągnęły wyniki bardzo zbliżone do metody LoRA i równie
 
 Przeprowadzone w ramach projektu eksperymenty pozwoliły na dogłębną analizę efektywności metod \\
 Parameter-Efficient Fine-Tuning w porównaniu do pełnego dostrajania modeli (Full Fine-Tuning). Badania objęły dwa rodzaje zadań: klasyfikację (BERT) oraz sekwencyjne generowanie tekstu (mT5), w tym symulowany scenariusz \textit{low-resource}.
-
-Decyzja o zmianie zakresu badań w części dotyczącej języka nepalskiego na ograniczony zbiór hiszpański wynikała z problemów metodologicznych przy ewaluacji generacji tekstu w języku o odmiennym alfabecie. Przejście na \textit{downsampled Spanish} pozwoliło na rzetelne porównanie numeryczne (z zachowaniem tej samej metryki ROUGE) i wyciągnięcie wniosków dotyczących efektywności metod przy małej liczbie danych.
 
 Kluczowe wnioski płynące z badań:
 
